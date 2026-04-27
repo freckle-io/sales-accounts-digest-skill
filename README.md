@@ -7,6 +7,7 @@ The skill is intentionally connector-first and repo-agnostic. It does not depend
 ## Contents
 
 - `SKILL.md` - the full skill definition and operating contract.
+- `templates/slack_digest.md`, `templates/slack_account_block.md`, and `templates/slack_digest_zero_surface.md` - Slack digest layout templates.
 - `agents/openai.yaml` - optional UI metadata for skill lists and default invocation.
 
 ## What It Does

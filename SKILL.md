@@ -10,7 +10,7 @@ Use this skill to run a repo-agnostic account intelligence digest workflow. The 
 ## Default Posture
 
 - Connector-first and repo-agnostic.
-- RevOps/manager-run by default.
+- RevOps/manager-run by default, including team or multi-rep digest runs.
 - Draft/preview before live delivery.
 - Slack delivery only after confirming the exact destination.
 - CRM note writeback only after Slack QA and explicit approval.
@@ -19,7 +19,7 @@ Use this skill to run a repo-agnostic account intelligence digest workflow. The 
 
 ## Start Here
 
-Before extracting data, ask or infer the account source:
+Before extracting data, ask or infer the account source and sales rep/team scope:
 
 ```text
 How will you provide the account list?
@@ -27,6 +27,12 @@ How will you provide the account list?
 - Salesforce report or list view
 - CSV
 - connected CRM search
+
+Which sales reps or team scope should this digest cover?
+- one named rep
+- selected reps
+- a team/territory/segment
+- all owners present in the CRM payload
 ```
 
 If the user chooses CRM, check whether the relevant CRM connector/MCP is available in the current environment:
@@ -36,6 +42,20 @@ If the user chooses CRM, check whether the relevant CRM connector/MCP is availab
 - Other CRM connector only if it exposes enough account identity, owner, domain, and record URL data.
 
 If no CRM connector is available, ask the user to connect it or provide a CSV fallback. Do not fall back to a local repo CLI unless the user explicitly asks for a repo-specific adapter.
+
+## Run Scope And Rep Resolution
+
+This skill must support RevOps users running account digests across multiple sales reps in one run. Treat the rep scope as a first-class run input, not as a single hard-coded recipient.
+
+Before extraction:
+
+- Ask the RevOps user to specify the rep, reps, team, territory, segment, or "all owners in this source" scope.
+- If the source is a CRM payload, report, list view, or CSV that already contains owner fields, inspect those fields before asking follow-up questions.
+- Common owner fields include `owner`, `account_owner`, `company_owner`, `hubspot_owner_id`, `OwnerId`, `Owner.Name`, `account_owner_email`, and equivalent CRM-specific account owner fields.
+- If the requested scope can be inferred from the payload, state the inferred reps/team and ask for confirmation before rendering or delivery.
+- If owner fields are missing, ambiguous, or contain unmapped IDs, mark affected records as `needs_owner_review` and ask the user for the owner mapping or a narrower scope.
+- When multiple reps are in scope, partition accounts by normalized owner/rep and render one digest payload per rep or segment. Do not blend multiple reps' accounts into a single rep-addressed Slack message unless the user explicitly asks for a manager/team summary.
+- For team-level RevOps review, provide an aggregate preview in the agent/user channel, then gate any per-rep Slack posting behind explicit destination approval.
 
 ## Data Model
 
@@ -69,6 +89,17 @@ The digest payload should use:
 
 ```json
 {
+  "run_scope": {
+    "type": "single_rep | selected_reps | team | all_source_owners",
+    "label": "Rep, team, territory, or segment name",
+    "reps": [
+      {
+        "name": "Rep Name",
+        "id": "optional CRM owner id",
+        "email": "optional@example.com"
+      }
+    ]
+  },
   "rep_name": "Rep or segment name",
   "accounts": [
     {
@@ -100,7 +131,7 @@ For every account, require:
 
 - company/account name
 - domain or explicit `needs_domain_enrichment`
-- owner or explicit `needs_owner_review`
+- owner/rep identity, inferred from CRM owner fields when possible, or explicit `needs_owner_review`
 - CRM record URL when the account came from CRM
 
 Do not research accounts missing domains externally unless the user explicitly approves domain enrichment.
@@ -226,7 +257,11 @@ Distinguish buyer-authored signals (form fills, product events, replies, identif
 
 ## Slack Digest Format
 
-The digest must be Slack-native, visually scannable, and pleasant to read. Use concise emoji section markers, Slack `mrkdwn`, and stable per-account blocks. The digest is **always rendered per account** when there are surfaced signals. One block per account that has at least one surfaced signal. Do not collapse, summarize across accounts, or substitute a top-level prose summary for the per-account blocks. If multiple signals exist for one account, list each as its own signal/source/action set inside that account's block.
+The Slack message body is maintained as templates in this skill folder. Use `templates/slack_digest.md` for surfaced-account runs, `templates/slack_account_block.md` once per surfaced account, and `templates/slack_digest_zero_surface.md` when no accounts surface. Do not embed or re-create the full Slack message body in `SKILL.md`; keep this section limited to rendering rules and template inputs.
+
+The digest must be Slack-native, visually scannable, and pleasant to read. Use the selected Slack template, concise emoji section markers, Slack `mrkdwn`, and stable per-account blocks. The digest is **always rendered per account** when there are surfaced signals. One block per account that has at least one surfaced signal. Do not collapse, summarize across accounts, or substitute a top-level prose summary for the per-account blocks. If multiple signals exist for one account, list each as its own signal/source/action set inside that account's block.
+
+For multi-rep runs, render the Slack template separately for each normalized rep or segment using that rep's accounts, surfaced count, suppressed count, connector list, and blocked-review summary. A team or manager summary is a separate artifact and must not replace the per-rep digest unless the user explicitly asks for only a team summary.
 
 Formatting/copy model guidance:
 
@@ -235,65 +270,28 @@ Formatting/copy model guidance:
 - The formatting pass may only rewrite already-normalized rows from `signals.csv` plus run metadata.
 - If a signal is not in `signals.csv`, it must not appear in Slack.
 
+Template inputs:
+
+- `rep_name` or segment label
+- account source label
+- signal window
+- connectors actually used
+- surfaced account count
+- suppressed account count
+- one account block per surfaced account
+- zero-surfaced status copy when no accounts pass the actionability gate
+- concise "what we checked" and "what to connect next" values for zero-surfaced runs
+
 Slack formatting mode:
 
 - Official Slack `mrkdwn` in `chat.postMessage.text` uses single asterisks for bold (`*bold*`) and underscores for italics (`_italic_`).
 - Slack `chat.postMessage.markdown_text` accepts standard Markdown; Slack's own method docs show double asterisks for bold (`**bold**`).
-- Some MCP/AI Slack connectors expose a generic Markdown `message` field and may render `*text*` as italic. When using one of those connectors, use double-asterisk labels (`**Signal:**`) so labels actually render bold.
-- If a connector explicitly says it accepts raw Slack `mrkdwn`, use single-asterisk labels. If the rendered QA message shows italic labels, switch that connector profile to double-asterisk Markdown labels.
-
-Header shape for Markdown-style Slack MCP connectors:
-
-```text
-📣 **Account Digest — Rep or Segment Name**
-🗂️ **Source:** HubSpot list 1024 · **Window:** last 14 days
-🔌 **Connectors used:** HubSpot, Sumble
-✅ **Surfaced accounts:** 4 · 🧹 **Suppressed:** 43
-
-
-
-`-----`
-
-
-```
-
-For each surfaced account, use exactly this shape:
-
-```text
-🏢 **Account:** Company name
-🔗 <CRM_RECORD_URL|CRM record>
-
-🚨 **Signal:** concise summary
-📍 **Source:** <SOURCE_URL|Source title> · **Date:** Apr 24
-➡️ **Suggested action:** concrete next step
-
-
-
-`-----`
-
-
-```
+- This skill's bundled templates default to raw Slack `mrkdwn` single-asterisk labels because the current Slack MCP send tool rejects double-asterisk Markdown as invalid blocks.
+- Some future Slack connectors may expose a `markdown_text` field and accept double-asterisk labels (`**Signal:**`). Only switch to that mode when the connector explicitly supports it and QA confirms it renders correctly.
 
 For multiple signals on the same account, repeat the `Signal`, `Source`, and `Suggested action` lines for each signal under the same company header. Each surfaced signal must include all three fields. Use a blank line between signals for readability.
 
-If the run has zero surfaced accounts, post a single short status block plus the "what to connect next" section. Do not invent placeholder per-account blocks. Use this shape:
-
-```text
-📣 **Account Digest — Rep or Segment Name**
-🗂️ **Source:** HubSpot list 1024 · **Window:** last 14 days
-🔌 **Connectors used:** HubSpot only
-
-
-
-`-----`
-
-
-🚫 **No buyer-authored signals to surface**
-Under the strict actionability gate, this run produced 0 surfaced accounts.
-
-🔎 **What we checked:** concise source/provider summary.
-🧭 **What to connect next:** concise list of missing signal sources.
-```
+If the run has zero surfaced accounts, use the template's zero-surfaced variant. Do not invent placeholder per-account blocks.
 
 Blocked records, missing domains, and `RevOps review needed` items do **not** belong in the Slack digest by default. Share those back in the agent/user channel after rendering or posting the digest, unless the user explicitly asks to include them in the Slack message.
 
@@ -301,9 +299,9 @@ Rules:
 
 - Strip query strings and UTM parameters from CRM record links.
 - Link sources with Slack syntax: `<url|source title>`.
-- Use the connector's actual formatting mode. For Markdown-style Slack MCP connectors, bold labels exactly as `**Account:**`, `**Signal:**`, `**Source:**`, `**Date:**`, and `**Suggested action:**`. For raw Slack `mrkdwn` connectors, use the single-asterisk equivalent (`*Signal:*`).
+- Use the connector's actual formatting mode. Default to the bundled raw Slack `mrkdwn` templates with labels such as `*Account:*`, `*Signal:*`, `*Source:*`, `*Date:*`, and `*Suggested action:*`. Only use double-asterisk labels when the connector explicitly exposes a Markdown/`markdown_text` field and QA confirms it works.
 - Render divider lines as inline code (`` `-----` ``) because bare hyphen-only lines can be interpreted as unsupported horizontal-rule blocks.
-- Put two blank lines before and after each divider line so Slack has visual breathing room between account blocks.
+- Use the template's generous spacing: leave a blank line between header rows, before/after dividers, and between each signal field inside account blocks.
 - Use short dates such as `Apr 24`.
 - Include `suggested_action` below each signal.
 - Omit `why_it_matters` from Slack by default.
