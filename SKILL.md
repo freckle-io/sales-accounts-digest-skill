@@ -235,13 +235,20 @@ Formatting/copy model guidance:
 - The formatting pass may only rewrite already-normalized rows from `signals.csv` plus run metadata.
 - If a signal is not in `signals.csv`, it must not appear in Slack.
 
-Header shape:
+Slack formatting mode:
+
+- Official Slack `mrkdwn` in `chat.postMessage.text` uses single asterisks for bold (`*bold*`) and underscores for italics (`_italic_`).
+- Slack `chat.postMessage.markdown_text` accepts standard Markdown; Slack's own method docs show double asterisks for bold (`**bold**`).
+- Some MCP/AI Slack connectors expose a generic Markdown `message` field and may render `*text*` as italic. When using one of those connectors, use double-asterisk labels (`**Signal:**`) so labels actually render bold.
+- If a connector explicitly says it accepts raw Slack `mrkdwn`, use single-asterisk labels. If the rendered QA message shows italic labels, switch that connector profile to double-asterisk Markdown labels.
+
+Header shape for Markdown-style Slack MCP connectors:
 
 ```text
-📣 *Account Digest — Rep or Segment Name*
-🗂️ *Source:* HubSpot list 1024 · *Window:* last 14 days
-🔌 *Connectors used:* HubSpot, Sumble
-✅ *Surfaced accounts:* 4 · 🧹 *Suppressed:* 43
+📣 **Account Digest — Rep or Segment Name**
+🗂️ **Source:** HubSpot list 1024 · **Window:** last 14 days
+🔌 **Connectors used:** HubSpot, Sumble
+✅ **Surfaced accounts:** 4 · 🧹 **Suppressed:** 43
 
 
 
@@ -253,12 +260,12 @@ Header shape:
 For each surfaced account, use exactly this shape:
 
 ```text
-🏢 *Account:* Company name
+🏢 **Account:** Company name
 🔗 <CRM_RECORD_URL|CRM record>
 
-🚨 *Signal:* concise summary
-📍 *Source:* <SOURCE_URL|Source title> · *Date:* Apr 24
-➡️ *Suggested action:* concrete next step
+🚨 **Signal:** concise summary
+📍 **Source:** <SOURCE_URL|Source title> · **Date:** Apr 24
+➡️ **Suggested action:** concrete next step
 
 
 
@@ -272,20 +279,20 @@ For multiple signals on the same account, repeat the `Signal`, `Source`, and `Su
 If the run has zero surfaced accounts, post a single short status block plus the "what to connect next" section. Do not invent placeholder per-account blocks. Use this shape:
 
 ```text
-📣 *Account Digest — Rep or Segment Name*
-🗂️ *Source:* HubSpot list 1024 · *Window:* last 14 days
-🔌 *Connectors used:* HubSpot only
+📣 **Account Digest — Rep or Segment Name**
+🗂️ **Source:** HubSpot list 1024 · **Window:** last 14 days
+🔌 **Connectors used:** HubSpot only
 
 
 
 `-----`
 
 
-🚫 *No buyer-authored signals to surface*
+🚫 **No buyer-authored signals to surface**
 Under the strict actionability gate, this run produced 0 surfaced accounts.
 
-🔎 *What we checked:* concise source/provider summary.
-🧭 *What to connect next:* concise list of missing signal sources.
+🔎 **What we checked:** concise source/provider summary.
+🧭 **What to connect next:** concise list of missing signal sources.
 ```
 
 Blocked records, missing domains, and `RevOps review needed` items do **not** belong in the Slack digest by default. Share those back in the agent/user channel after rendering or posting the digest, unless the user explicitly asks to include them in the Slack message.
@@ -294,7 +301,7 @@ Rules:
 
 - Strip query strings and UTM parameters from CRM record links.
 - Link sources with Slack syntax: `<url|source title>`.
-- Use Slack's native `mrkdwn` convention: single asterisks for bold (`*text*`). Bold labels exactly as `*Account:*`, `*Signal:*`, `*Source:*`, `*Date:*`, and `*Suggested action:*`. Do not use standard Markdown double-asterisk bold (`**text**`) in Slack output.
+- Use the connector's actual formatting mode. For Markdown-style Slack MCP connectors, bold labels exactly as `**Account:**`, `**Signal:**`, `**Source:**`, `**Date:**`, and `**Suggested action:**`. For raw Slack `mrkdwn` connectors, use the single-asterisk equivalent (`*Signal:*`).
 - Render divider lines as inline code (`` `-----` ``) because bare hyphen-only lines can be interpreted as unsupported horizontal-rule blocks.
 - Put two blank lines before and after each divider line so Slack has visual breathing room between account blocks.
 - Use short dates such as `Apr 24`.
