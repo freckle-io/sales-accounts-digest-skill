@@ -243,55 +243,64 @@ Header shape:
 🔌 *Connectors used:* HubSpot, Sumble
 ✅ *Surfaced accounts:* 4 · 🧹 *Suppressed:* 43
 
-`--------------`
+
+
+`-----`
+
+
 ```
 
 For each surfaced account, use exactly this shape:
 
 ```text
-🏢 *Company name*
+🏢 *Account:* Company name
 🔗 <CRM_RECORD_URL|CRM record>
 
 🚨 *Signal:* concise summary
 📍 *Source:* <SOURCE_URL|Source title> · *Date:* Apr 24
 ➡️ *Suggested action:* concrete next step
 
-`--------------`
+
+
+`-----`
+
+
 ```
 
 For multiple signals on the same account, repeat the `Signal`, `Source`, and `Suggested action` lines for each signal under the same company header. Each surfaced signal must include all three fields. Use a blank line between signals for readability.
 
-If the run has zero surfaced accounts, post a single short status block plus the RevOps-review and "what to connect next" sections. Do not invent placeholder per-account blocks. Use this shape:
+If the run has zero surfaced accounts, post a single short status block plus the "what to connect next" section. Do not invent placeholder per-account blocks. Use this shape:
 
 ```text
 📣 *Account Digest — Rep or Segment Name*
 🗂️ *Source:* HubSpot list 1024 · *Window:* last 14 days
 🔌 *Connectors used:* HubSpot only
 
-`--------------`
+
+
+`-----`
+
 
 🚫 *No buyer-authored signals to surface*
 Under the strict actionability gate, this run produced 0 surfaced accounts.
 
 🔎 *What we checked:* concise source/provider summary.
 🧭 *What to connect next:* concise list of missing signal sources.
-
-`--------------`
-
-🧹 *RevOps review needed (3)*
-- <CRM_RECORD_URL|Record 123> — missing name/domain
 ```
+
+Blocked records, missing domains, and `RevOps review needed` items do **not** belong in the Slack digest by default. Share those back in the agent/user channel after rendering or posting the digest, unless the user explicitly asks to include them in the Slack message.
 
 Rules:
 
 - Strip query strings and UTM parameters from CRM record links.
 - Link sources with Slack syntax: `<url|source title>`.
-- Use Slack's native `mrkdwn` convention: single asterisks for bold (`*text*`). The Slack connector validates against this syntax and may reject standard Markdown double-asterisk bold.
-- Render divider lines as inline code (`` `--------------` ``) because bare hyphen-only lines can be interpreted as unsupported horizontal-rule blocks.
+- Use Slack's native `mrkdwn` convention: single asterisks for bold (`*text*`). Bold labels exactly as `*Account:*`, `*Signal:*`, `*Source:*`, `*Date:*`, and `*Suggested action:*`. Do not use standard Markdown double-asterisk bold (`**text**`) in Slack output.
+- Render divider lines as inline code (`` `-----` ``) because bare hyphen-only lines can be interpreted as unsupported horizontal-rule blocks.
+- Put two blank lines before and after each divider line so Slack has visual breathing room between account blocks.
 - Use short dates such as `Apr 24`.
 - Include `suggested_action` below each signal.
 - Omit `why_it_matters` from Slack by default.
-- Include blocked accounts in a short `RevOps review needed` section.
+- Omit blocked accounts and `RevOps review needed` sections from Slack by default; report them separately in the agent/user channel.
 - Emojis are part of the Slack digest format. Use them sparingly as section markers, not decoration on every word.
 
 ## Delivery Gates
