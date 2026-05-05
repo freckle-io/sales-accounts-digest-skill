@@ -60,6 +60,19 @@ Check in.
 Mention the signal.
 ```
 
+For Slack rendering, convert `suggested_action` plus the account's strongest staged signal into a paste-ready `suggested_opener`. The opener should:
+
+- mention the concrete trigger
+- name the likely operational pain
+- ask one clear question
+- avoid sounding like generic enrichment or data-quality boilerplate
+
+Example:
+
+```text
+Saw you are hiring a Sales Insights Analyst in EMEA. Teams at that stage often find account research and CRM context become the bottleneck for prioritizing the right enterprise accounts. Is your team looking at that this quarter?
+```
+
 ## Run Metadata
 
 Track:

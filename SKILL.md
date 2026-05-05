@@ -1,130 +1,85 @@
 ---
 name: account-digest-for-reps
-description: Build connector-first account signal digests for reps or managers from CRM lists, Salesforce reports/list views, CRM searches, HubSpot custom events/objects, product/session activity, or CSVs; rank the best accounts; render Slack-ready summaries; and gate Slack delivery plus CRM writeback behind explicit approval.
+description: Build connector-first account signal digests for reps or managers from CRM lists, Salesforce reports/list views, CRM searches, HubSpot custom events/objects, product/session activity, Slack/Notion/prospect updates, enrichment providers, or CSVs; rank the best accounts; render Slack-ready summaries; and gate enrichment, Slack delivery, and CRM writeback behind explicit approval.
 ---
 
 # Account Digest For Reps
 
-Use this skill to help RevOps, founders, managers, or reps decide which accounts deserve attention now. The default output is a compact Slack digest of the top accounts, with cited signals and suggested next moves.
-
-This skill is portable and connector-first. Do not assume Freckle-specific paths, local CLIs, local env vars, or a fixed CRM.
+Build a Slack-ready account digest that helps reps decide which accounts deserve attention now. Keep the skill portable: do not assume Freckle-specific paths, local CLIs, local env vars, or a fixed CRM.
 
 ## Core Contract
 
-- Start by discovering available connectors/tools before asking broad setup questions.
-- Ask only for missing inputs after inspecting the account source and installed providers.
-- Stage all account signals in a per-run `signals.csv` before rendering.
+- Start with three intake questions: who the digest is for, what accounts to track, and where it should go in Slack.
+- Discover CRM, enrichment, product/activity, collaboration, file/sheet, and delivery connectors before signal analysis.
+- Ask the user to add, connect, export, or approve enrichment/provider sources before running any signal analysis.
+- Explicitly ask about prospect updates in Slack, Notion, Clerk/session activity, product analytics, warehouse exports, provider lists, and any other accessible surface the user wants queried.
+- Do not stage `signals.csv`, render a preview, or run CRM-only analysis until the user has selected a signal mode and approved, declined, or ruled out enrichment/provider inputs.
+- Stage every surfaced signal in a per-run `signals.csv` before rendering. Never render signals that are not in the CSV.
 - Cap Slack output at the top 10 accounts per rep/segment unless the user asks for more.
-- Use `🟢 *Signal:*` for normal surfaced signals. Do not use red alert/red-circle markers.
-- Slack delivery, CRM note writeback, external domain enrichment, and optional provider extraction require explicit approval.
+- Use `🟢 *Why now:*` for the primary surfaced trigger. Do not use red alert/red-circle markers.
+- Slack delivery, CRM note writeback, external domain enrichment, optional provider extraction, and querying collaboration surfaces require explicit approval.
 - Never claim a provider was used unless it produced signal rows.
 
 ## Reference Router
 
 Load only what the run needs:
 
-- Provider discovery and mapping: `references/providers.md`
-- Signal groups, scoring, and suppression rules: `references/signal-groups.md`
-- Extraction schema and CSV staging logic: `references/extraction.md`
-- HubSpot CRM, custom events, and custom objects: `references/hubspot.md`
-- Slack templates, formatting rules, and full example output: `references/slack-output.md`
+- Provider discovery, signal modes, enrichment gate: `references/providers.md`
+- Signal groups, scoring, suppression rules: `references/signal-groups.md`
+- CSV staging schema: `references/extraction.md`
+- HubSpot CRM/events/custom objects: `references/hubspot.md`
+- Slack formatting and example output: `references/slack-output.md`
 
-Templates live in `templates/`:
+Templates:
 
 - `templates/slack_digest.md`
 - `templates/slack_account_block.md`
 - `templates/slack_digest_zero_surface.md`
 
-## Fast Workflow
+## Workflow
 
-1. **Discover tools first.**
-   Inspect available connectors/MCP tools for CRM, Slack, HubSpot/Salesforce, signal providers, product analytics, sheets/CSVs, and search. Then summarize detected providers and likely signal groups. See `references/providers.md`.
+1. **Intake.** Ask who the digest is for, what accounts to track, and where it should go in Slack. If the user already provided any answer, ask only for what is missing.
+2. **Discover sources.** Inspect available connectors/tools for CRM, enrichment providers, Slack, Notion/docs, Clerk/session activity, product analytics, sheets/CSVs, warehouse exports, web/search, and Slack delivery. Read `references/providers.md`.
+3. **Resolve account source.** Accept HubSpot list/search, Salesforce report/list view, CRM search, CSV/sheet, territory/segment, or another source. Require account name plus domain or CRM record URL/id. Infer owner fields before asking.
+4. **Gate enrichment before analysis.** Summarize detected and missing source categories. Ask the user what reps are managing, recommend a signal mode, and ask which enrichment providers, prospect-update surfaces, exports, or connectors to include. Do not create `signals.csv` or a preview yet.
+5. **Get approval or decline.** Proceed only after the user explicitly approves provider/surface queries, declines them, or confirms they are unavailable. If they decline, label the run CRM-only or first-party-only and explain that insights may be thinner.
+6. **Extract signals.** Query approved sources only. Normalize every usable signal into `signals.csv` using `references/extraction.md`.
+7. **Score and render.** Rank by the selected mode, recency, ICP/account fit, confidence, and actionability. Render only from `signals.csv` using the Slack templates.
+8. **Deliver after approval.** Confirm exact Slack destination and post only after approval. CRM writeback requires separate approval and account confirmation.
 
-2. **Resolve account source.**
-   Accept HubSpot list/search, Salesforce report/list view, connected CRM search, CSV, or another CRM payload. Require account name plus domain or CRM record URL/id. Infer owner fields before asking the user.
+## Required User Prompts
 
-3. **Resolve run scope.**
-   Determine whether this is for one rep, selected reps, team/territory/segment, or all owners in the source. For multi-rep runs, render one digest per rep/segment unless the user asks for a manager summary.
-
-4. **Ask only missing questions.**
-   After inspection, ask for unresolved items: signal preferences, excluded accounts, missing owner mappings, unavailable providers, Slack destination, and whether HubSpot custom events/objects or product/session activity should be checked.
-
-5. **Extract concrete signal rows.**
-   Normalize each usable signal into `signals.csv` using the schema in `references/extraction.md`. Each row needs account, source, provider, date, confidence, signal group, buyer-authored status, and suggested action.
-
-6. **Score and gate.**
-   Rank by RevOps preference, recency, GTM relevance, ICP fit, first-party activity, confidence, and actionability. Suppress static firmographics, rep-authored CRM activity alone, weak anonymous activity, and parent-company/domain mismatches.
-
-7. **Render preview.**
-   Use the Slack templates and `references/slack-output.md`. Render per-account blocks only from `signals.csv`; do not invent missing signals.
-
-8. **Deliver only after approval.**
-   Confirm exact Slack destination and post only after user approval. CRM note writeback requires a second explicit approval and account list confirmation.
-
-## Initial Discovery Checklist
-
-Before asking the user which providers exist, check for:
-
-- CRM: HubSpot, Salesforce, or other CRM tools.
-- Signals: Sumble, Exa, PredictLeads, Apollo, ZoomInfo, RB2B, Vector, G2, Clay, CrustData, Trigify, Jungler, TAMRadar, AI Ark, SignalBase.
-- First-party activity: HubSpot Marketing Hub, HubSpot custom events, HubSpot custom objects, Clerk/session activity, product analytics, internal warehouse exports, CSV/sheets.
-- Delivery: Slack send/draft tools.
-
-Then ask:
+Opening prompt:
 
 ```text
+To build the account digest, I need three basics first:
+
+1. Who is this for: you, a specific rep, selected reps, team members, or all owners?
+2. What accounts should I track for them: named accounts, a CRM list/report/search, territory, segment, or CSV/sheet?
+3. Where should the digest go in Slack: channel, DM, thread, or preview-only?
+```
+
+Pre-analysis enrichment prompt:
+
+```text
+Before I run signal analysis, I need to decide which signal sources to include.
+
+What are these reps managing: pipeline follow-up, product-led signups/trials, named target accounts, expansion/customer health, or outbound trigger hunting?
+
 I found these usable sources: ...
-Do you also have signals stored in HubSpot custom events/objects, product analytics, Clerk/session activity, or a RevOps CSV/sheet that should be included?
-Any accounts, segments, competitors, customers, or parent-company false matches to exclude?
+
+Do you want me to include enrichment providers or prospect-update surfaces before building the digest? Examples: Sumble, Exa, Clay, Apollo, ZoomInfo, PredictLeads, RB2B/Vector, G2/Capterra, Slack threads/channels, Notion notes/docs, Clerk/session activity, product analytics, HubSpot custom events/objects, warehouse exports, or RevOps CSVs/sheets.
 ```
 
-## Account Shape
-
-```json
-{
-  "name": "Example Co",
-  "domain": "example.com",
-  "owner": "Rep Name or owner id",
-  "crm": "hubspot",
-  "crm_record_id": "123",
-  "crm_url": "https://app.hubspot.com/contacts/PORTAL/record/0-2/123"
-}
-```
-
-## Signal Shape
-
-```json
-{
-  "account_name": "Example Co",
-  "domain": "example.com",
-  "signal_group": "hiring",
-  "summary": "Hiring for RevOps and outbound operations roles.",
-  "source_title": "RevOps Manager role (found with Sumble)",
-  "source_url": "https://example.com/jobs/revops",
-  "date": "2026-04-27",
-  "confidence": "high",
-  "suggested_action": "Ask whether outbound operations tooling is part of the new RevOps mandate.",
-  "buyer_authored": true,
-  "provider": "sumble"
-}
-```
-
-## Default Signal Preferences
-
-If the user has no custom preference, prioritize:
-
-- hiring in GTM, RevOps, sales ops, marketing ops, growth, partnerships, customer success, support, sales engineering, data, analytics, CRM, Salesforce, HubSpot, or business operations
-- funding, market expansion, product launches, partner programs, pricing/packaging changes
-- first-party activity: product usage, signups, form fills, replies, identified web visits, Clerk/session activity
-- CRM/account context only when paired with buyer-authored or external-trigger evidence
+If the selected mode needs a source that is missing, ask whether the user can connect or export it before proceeding.
 
 ## Output Rules
 
 - Top 10 accounts by default; do not pad weak accounts.
-- Every Slack account block needs account name, CRM link, signal, source/provider, date, and suggested action.
+- Every Slack account block needs account name, CRM link, why now, sales hypothesis, who to try, suggested opener, source/provider, and date.
 - Source labels must include provider attribution, e.g. `(found with Sumble)`.
 - Use short dates like `Apr 27` in Slack; keep ISO dates in CSV.
-- Report blocked/missing-domain/owner-review records outside the Slack digest unless the user asks to include them.
+- Report blocked, missing-domain, and owner-review records outside the Slack digest unless the user asks to include them.
 
 ## Optional Repo Adapter
 

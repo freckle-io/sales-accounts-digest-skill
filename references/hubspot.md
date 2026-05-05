@@ -2,6 +2,16 @@
 
 Use this reference when HubSpot is the account source or signal store.
 
+## Connector Capability Check
+
+Before asking the user for a HubSpot export or claiming HubSpot cannot support a source, validate the available HubSpot MCP commands and object capabilities:
+
+- Run the connector's user/capability-details tool when available to inspect readable object types and tool availability.
+- Check whether `OBJECT_LIST` is readable. If it is, inspect its metadata for list membership behavior before looking for a separate list-membership command.
+- For HubSpot list membership, try filtering the relevant CRM object type with `ilsListIds` using `EQ` or `IN` against the HubSpot list/segment id.
+- Search properties on `companies`, `contacts`, `deals`, and available activity objects for signup, form, visit, engagement, activity, lifecycle, opportunity, custom event, and custom object fields.
+- Treat missing MCP commands differently from missing HubSpot capability: if the connector exposes object search and property metadata, use those surfaces before asking for a CSV fallback.
+
 ## Early Question
 
 After detecting HubSpot, ask:

@@ -1,10 +1,14 @@
-🏢 *Account:* {{account_name}} (<{{crm_record_url}}|{{crm_record_link_label}}>)
+🏢 *{{account_name}}* — {{fit_urgency_label}} (<{{crm_record_url}}|{{crm_record_link_label}}>)
 
-🟢 *Signal:* {{signal_summary}}
+🟢 *Why now:* {{why_now}}
 
-📍 *Source:* <{{source_url}}|{{source_title}} (found with {{provider_name}})> · *Date:* {{signal_date}}
+🎯 *Sales hypothesis:* {{sales_hypothesis}}
 
-➡️ *Suggested action:* {{suggested_action}}
+👤 *Who to try:* {{who_to_try}}
+
+➡️ *Suggested opener:* {{suggested_opener}}
+
+📍 *Sources:* {{source_links_and_dates}}
 
 
 `-----`
